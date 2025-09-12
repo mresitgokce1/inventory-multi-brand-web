@@ -2,6 +2,7 @@ import React from 'react';
 import { useRef } from 'react';
 import type { ProductPublic, QRCodeResponse } from '../types';
 import { formatPrice } from '../utils/price';
+import { buildQRDataURL, createQRDownloadFilename } from '../utils/qr';
 
 interface QRModalProps {
   isOpen: boolean;
@@ -12,10 +13,14 @@ interface QRModalProps {
 
 const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, product, qrData }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  
+  // Build the QR data URL with proper validation
+  const qrDataURL = buildQRDataURL(qrData);
+  const downloadFilename = createQRDownloadFilename(product.name, qrData.mime_type);
 
   const handlePrint = () => {
     const printContent = printRef.current;
-    if (!printContent) return;
+    if (!printContent || !qrDataURL) return;
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -90,7 +95,7 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, product, qrData }) =
               </div>
             </div>
             <div class="qr-code">
-              <img src="data:image/png;base64,${qrData.qr_code}" alt="QR Code for ${product.name}" />
+              <img src="${qrDataURL}" alt="QR Code for ${product.name}" />
             </div>
             <div class="url">${qrData.url}</div>
           </div>
@@ -140,11 +145,19 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, product, qrData }) =
             {/* QR Code */}
             <div className="flex justify-center mb-4">
               <div className="p-4 bg-white border-2 border-gray-300 rounded-lg">
-                <img
-                  src={`data:image/png;base64,${qrData.qr_code}`}
-                  alt={`QR Code for ${product.name}`}
-                  className="w-48 h-48"
-                />
+                {qrDataURL ? (
+                  <img
+                    src={qrDataURL}
+                    alt={`QR Code for ${product.name}`}
+                    className="w-48 h-48"
+                  />
+                ) : (
+                  <div className="w-48 h-48 flex items-center justify-center bg-gray-100 text-gray-500 text-sm text-center">
+                    QR image unavailable
+                    <br />
+                    <span className="text-xs">Check console for details</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -158,10 +171,20 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, product, qrData }) =
           <div className="flex gap-3">
             <button
               onClick={handlePrint}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium"
+              disabled={!qrDataURL}
+              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Print QR Code
             </button>
+            {qrDataURL && (
+              <a
+                href={qrDataURL}
+                download={downloadFilename}
+                className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 font-medium text-center"
+              >
+                Download
+              </a>
+            )}
             <button
               onClick={onClose}
               className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 font-medium"

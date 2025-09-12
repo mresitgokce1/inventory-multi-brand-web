@@ -36,6 +36,10 @@ export interface LoginResponse {
 }
 
 export interface QRCodeResponse {
-  qr_code: string; // base64 PNG
+  code: string;
   url: string;
+  image_base64: string;
+  mime_type: string;
+  // Legacy compatibility fields
+  qr_code?: string; // Fallback for backward compatibility
 }
