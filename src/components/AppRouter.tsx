@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '../contexts/AuthContext';
 import { authService } from '../services/auth';
+import ErrorBoundary from './ErrorBoundary';
 
 // Pages
 import LoginPage from '../pages/LoginPage';
@@ -25,26 +26,28 @@ const queryClient = new QueryClient({
 
 const AppRouter: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/p/:code" element={<QRLandingPage />} />
-            <Route
-              path="/dashboard/products"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/" element={<Navigate to="/dashboard/products" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard/products" replace />} />
-          </Routes>
-        </Router>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Router>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/p/:code" element={<QRLandingPage />} />
+              <Route
+                path="/dashboard/products"
+                element={
+                  <ProtectedRoute>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/" element={<Navigate to="/dashboard/products" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard/products" replace />} />
+            </Routes>
+          </Router>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { productService } from '../services/product';
 import { useAuth } from '../hooks/useAuth';
 import type { QRResolveResponse } from '../types';
+import { formatPrice } from '../utils/price';
 
 const QRLandingPage: React.FC = () => {
   const { code } = useParams<{ code: string }>();
@@ -87,7 +88,7 @@ const QRLandingPage: React.FC = () => {
             </div>
             <div className="text-right">
               <div className="text-3xl font-bold text-blue-600">
-                ${product_public.price.toFixed(2)}
+                {formatPrice(product_public.price)}
               </div>
             </div>
           </div>

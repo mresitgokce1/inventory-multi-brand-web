@@ -29,7 +29,7 @@ const mockProductData: QRResolveResponse = {
   product_public: {
     id: '1',
     name: 'Test Product',
-    price: 99.99,
+    price: '99.99',
     brand: 'Test Brand',
     category: 'Electronics',
     description: 'A test product',
@@ -82,7 +82,7 @@ describe('QR Landing Page', () => {
 
     // Should show public product information
     await screen.findByText('Test Product');
-    expect(screen.getByText('$99.99')).toBeInTheDocument();
+    expect(screen.getByText('$99,99')).toBeInTheDocument();
     expect(screen.getByText('Test Brand')).toBeInTheDocument();
     expect(screen.getByText('Electronics')).toBeInTheDocument();
     expect(screen.getByText('A test product')).toBeInTheDocument();

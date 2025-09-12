@@ -1,7 +1,7 @@
 export interface ProductPublic {
   id: string;
   name: string;
-  price: number;
+  price: string; // DRF returns Decimal as string
   image?: string;
   brand: string;
   category: string;

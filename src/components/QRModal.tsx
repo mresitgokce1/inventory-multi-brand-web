@@ -1,6 +1,7 @@
 import React from 'react';
 import { useRef } from 'react';
 import type { ProductPublic, QRCodeResponse } from '../types';
+import { formatPrice } from '../utils/price';
 
 interface QRModalProps {
   isOpen: boolean;
@@ -85,7 +86,7 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, product, qrData }) =
               <div class="product-name">${product.name}</div>
               <div class="product-details">
                 ${product.brand} • ${product.category}<br>
-                $${product.price.toFixed(2)}
+                $${formatPrice(product.price).replace('$', '')}
               </div>
             </div>
             <div class="qr-code">
@@ -131,7 +132,7 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose, product, qrData }) =
               <div className="text-gray-600 space-y-1">
                 <div>{product.brand} • {product.category}</div>
                 <div className="text-lg font-semibold text-blue-600">
-                  ${product.price.toFixed(2)}
+                  {formatPrice(product.price)}
                 </div>
               </div>
             </div>
