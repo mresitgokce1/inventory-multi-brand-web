@@ -16,8 +16,9 @@ vi.mock('../services/auth', () => ({
   authService: {
     login: vi.fn(),
     setupInterceptors: vi.fn(),
-    setAuthTokens: vi.fn(),
-    clearAuthTokens: vi.fn(),
+    setAccessToken: vi.fn(),
+    clearAccessToken: vi.fn(),
+    getAccessToken: vi.fn(),
   },
   default: {
     get: vi.fn(),

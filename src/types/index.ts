@@ -19,15 +19,10 @@ export interface QRResolveResponse {
 }
 
 export interface User {
-  id: string;
+  id: number;
   email: string;
-  role: 'manager' | 'admin';
-  brand: string;
-}
-
-export interface AuthTokens {
-  access: string;
-  refresh: string;
+  role: 'ADMIN' | 'MANAGER';
+  brand_id: number | null;
 }
 
 export interface LoginRequest {
@@ -36,8 +31,8 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
+  access: string;
   user: User;
-  tokens: AuthTokens;
 }
 
 export interface QRCodeResponse {

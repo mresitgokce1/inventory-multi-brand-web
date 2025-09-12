@@ -84,7 +84,7 @@ const DashboardPage: React.FC = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Product Dashboard</h1>
               <p className="text-sm text-gray-600">
-                Welcome back, {user?.email} ({user?.brand})
+                Welcome back, {user?.email}{user?.brand_id ? ` (Brand ID: ${user.brand_id})` : ' (Global Admin)'}
               </p>
             </div>
             <button
