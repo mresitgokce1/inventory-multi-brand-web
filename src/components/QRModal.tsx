@@ -1,13 +1,13 @@
 import React from 'react';
 import { useRef } from 'react';
-import type { ProductPublic, QRCodeResponse } from '../types';
+import type { ProductListItem, QRCodeResponse } from '../types';
 import { formatPrice } from '../utils/price';
 import { buildQRDataURL, createQRDownloadFilename } from '../utils/qr';
 
 interface QRModalProps {
   isOpen: boolean;
   onClose: () => void;
-  product: ProductPublic;
+  product: ProductListItem;
   qrData: QRCodeResponse;
 }
 

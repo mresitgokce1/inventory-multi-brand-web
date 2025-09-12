@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productService } from '../services/product';
 import { useAuth } from '../hooks/useAuth';
-import type { ProductPublic, QRCodeResponse } from '../types';
+import type { ProductListItem, QRCodeResponse } from '../types';
 import QRModal from '../components/QRModal';
 import { formatPrice } from '../utils/price';
 
 const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
-  const [selectedProduct, setSelectedProduct] = useState<ProductPublic | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductListItem | null>(null);
   const [qrData, setQrData] = useState<QRCodeResponse | null>(null);
   const queryClient = useQueryClient();
 
@@ -16,7 +16,7 @@ const DashboardPage: React.FC = () => {
     data: products,
     isLoading,
     error,
-  } = useQuery<ProductPublic[]>({
+  } = useQuery<ProductListItem[]>({
     queryKey: ['products'],
     queryFn: productService.getProducts,
   });
@@ -36,7 +36,7 @@ const DashboardPage: React.FC = () => {
     },
   });
 
-  const handleGenerateQR = (product: ProductPublic) => {
+  const handleGenerateQR = (product: ProductListItem) => {
     generateQRMutation.mutate(product.id);
   };
 
@@ -88,12 +88,30 @@ const DashboardPage: React.FC = () => {
                 Welcome back, {user?.email}{user?.brand_id ? ` (Brand ID: ${user.brand_id})` : ' (Global Admin)'}
               </p>
             </div>
-            <button
-              onClick={logout}
-              className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
-            >
-              Sign Out
-            </button>
+            <div className="flex gap-3">
+              {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+                <>
+                  <a
+                    href="/dashboard/categories/new"
+                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm font-medium"
+                  >
+                    Add Category
+                  </a>
+                  <a
+                    href="/dashboard/products/new"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-medium"
+                  >
+                    Add Product
+                  </a>
+                </>
+              )}
+              <button
+                onClick={logout}
+                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -111,9 +129,17 @@ const DashboardPage: React.FC = () => {
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">📦</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Products Found</h3>
-            <p className="text-gray-600">
-              You don't have any products yet. Contact your administrator to add products.
+            <p className="text-gray-600 mb-4">
+              You don't have any products yet. 
             </p>
+            {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+              <a
+                href="/dashboard/products/new"
+                className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 font-medium"
+              >
+                Create Your First Product
+              </a>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

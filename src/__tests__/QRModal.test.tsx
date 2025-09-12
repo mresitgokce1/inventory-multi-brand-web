@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import QRModal from '../components/QRModal';
-import type { ProductPublic, QRCodeResponse } from '../types';
+import type { ProductListItem, QRCodeResponse } from '../types';
 
 // Mock the utility functions
 vi.mock('../utils/qr', () => ({
@@ -12,7 +12,7 @@ vi.mock('../utils/qr', () => ({
 import { buildQRDataURL, createQRDownloadFilename } from '../utils/qr';
 
 describe('QRModal', () => {
-  const mockProduct: ProductPublic = {
+  const mockProduct: ProductListItem = {
     id: '1',
     name: 'Test Product',
     price: '29.99',
@@ -156,7 +156,7 @@ describe('QRModal', () => {
         print: vi.fn(),
         close: vi.fn()
       };
-      (window as any).open = vi.fn(() => mockPrintWindow);
+      (window as typeof window & { open: unknown }).open = vi.fn(() => mockPrintWindow);
     });
 
     it('should handle print when QR data URL is available', () => {

@@ -26,14 +26,24 @@ vi.mock('react-router-dom', async () => {
 });
 
 const mockProductData: QRResolveResponse = {
+  visibility: 'admin',
   product_public: {
-    id: '1',
+    id: 1,
     name: 'Test Product',
-    price: '99.99',
-    brand: 'Test Brand',
-    category: 'Electronics',
+    slug: 'test-product',
+    price: '99,99',
+    brand: {
+      id: 1,
+      name: 'Test Brand',
+      slug: 'test-brand',
+    },
+    category: {
+      id: 1,
+      name: 'Electronics',
+      slug: 'electronics',
+    },
     description: 'A test product',
-    image: 'https://example.com/image.jpg',
+    image_small_url: 'https://example.com/image.jpg',
   },
   product_private: {
     sku: 'TEST-SKU-123',
@@ -175,12 +185,12 @@ describe('QR Landing Page', () => {
   });
 
   it('should work for MANAGER with matching brand', async () => {
-    // Assuming the product brand corresponds to brand_id 1 somehow
+    // Manager with matching brand ID
     const user: User = {
       id: 2,
       email: 'manager@test.com',
       role: 'MANAGER',
-      brand_id: 1,
+      brand_id: 1, // Matches product brand ID
     };
 
     const authValue: AuthContextType = {
@@ -192,17 +202,6 @@ describe('QR Landing Page', () => {
       isLoading: false,
     };
 
-    // Mock product data where brand matches the pattern for brand_id 1
-    const productDataWithMatchingBrand: QRResolveResponse = {
-      ...mockProductData,
-      product_public: {
-        ...mockProductData.product_public,
-        brand: '1', // Assuming brand matches brand_id as string
-      },
-    };
-    
-    vi.mocked(productService.resolveQR).mockResolvedValue(productDataWithMatchingBrand);
-
     renderQRPage(authValue);
 
     // Should show public info
@@ -210,5 +209,35 @@ describe('QR Landing Page', () => {
     
     // Should show private information toggle for matching brand
     expect(screen.getByText('Sensitive Information')).toBeInTheDocument();
+  });
+
+  it('should handle missing image gracefully', async () => {
+    const productDataNoImage: QRResolveResponse = {
+      ...mockProductData,
+      product_public: {
+        ...mockProductData.product_public,
+        image_small_url: null,
+      },
+    };
+
+    vi.mocked(productService.resolveQR).mockResolvedValue(productDataNoImage);
+
+    const authValue: AuthContextType = {
+      user: null,
+      accessToken: null,
+      login: mockLogin,
+      logout: mockLogout,
+      isAuthenticated: false,
+      isLoading: false,
+    };
+
+    renderQRPage(authValue);
+
+    // Should show product info without crashing
+    await screen.findByText('Test Product');
+    expect(screen.getByText('$99,99')).toBeInTheDocument();
+    
+    // Image should not be present
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 });
