@@ -1,10 +1,23 @@
-export interface ProductPublic {
-  id: string;
+export interface Brand {
+  id: number;
   name: string;
-  price: string; // DRF returns Decimal as string
-  image?: string;
-  brand: string;
-  category: string;
+  slug: string;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface ProductPublic {
+  id: number;
+  name: string;
+  slug: string;
+  price: string; // DRF returns Decimal as string with comma ("232,00")
+  image_small_url?: string | null;
+  brand: Brand;
+  category: Category;
   description?: string;
 }
 
@@ -14,8 +27,20 @@ export interface ProductPrivate {
 }
 
 export interface QRResolveResponse {
+  visibility: string;
   product_public: ProductPublic;
   product_private?: ProductPrivate;
+}
+
+// For dashboard list view (simplified)
+export interface ProductListItem {
+  id: string;
+  name: string;
+  price: string;
+  image?: string;
+  brand: string;
+  category: string;
+  description?: string;
 }
 
 export interface User {

@@ -52,19 +52,29 @@ const QRLandingPage: React.FC = () => {
 
   const { product_public, product_private } = productData;
   const hasPrivateData = !!product_private;
+  
+  // Safe access to brand and category data
+  const brandName = product_public.brand?.name || 'Unknown Brand';
+  const categoryName = product_public.category?.name || 'Unknown Category';
+  const brandId = product_public.brand?.id;
+  
+  // Check if user can view private data
   const canViewPrivate =
-    isAuthenticated && user && hasPrivateData && 
-    (user.role === 'ADMIN' || (user.brand_id && user.brand_id.toString() === product_public.brand));
+    isAuthenticated && 
+    user && 
+    hasPrivateData && 
+    (user.role === 'ADMIN' || 
+     (user.role === 'MANAGER' && user.brand_id && brandId && user.brand_id === brandId));
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
         {/* Product Image */}
-        {product_public.image && (
+        {product_public.image_small_url && (
           <div className="mb-6 rounded-lg overflow-hidden shadow-lg">
             <img
-              src={product_public.image}
-              alt={product_public.name}
+              src={product_public.image_small_url}
+              alt={product_public.name || 'Product image'}
               className="w-full h-64 sm:h-80 object-cover"
             />
           </div>
@@ -75,14 +85,14 @@ const QRLandingPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                {product_public.name}
+                {product_public.name || 'Unknown Product'}
               </h1>
               <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
                 <span className="bg-gray-100 px-3 py-1 rounded-full">
-                  {product_public.brand}
+                  {brandName}
                 </span>
                 <span className="bg-gray-100 px-3 py-1 rounded-full">
-                  {product_public.category}
+                  {categoryName}
                 </span>
               </div>
             </div>

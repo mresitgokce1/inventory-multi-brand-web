@@ -9,6 +9,8 @@ import ErrorBoundary from './ErrorBoundary';
 import LoginPage from '../pages/LoginPage';
 import QRLandingPage from '../pages/QRLandingPage';
 import DashboardPage from '../pages/DashboardPage';
+import CreateCategoryPage from '../pages/CreateCategoryPage';
+import CreateProductPage from '../pages/CreateProductPage';
 import ProtectedRoute from './ProtectedRoute';
 
 // Setup auth interceptors
@@ -38,6 +40,22 @@ const AppRouter: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/categories/new"
+                element={
+                  <ProtectedRoute>
+                    <CreateCategoryPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/products/new"
+                element={
+                  <ProtectedRoute>
+                    <CreateProductPage />
                   </ProtectedRoute>
                 }
               />
