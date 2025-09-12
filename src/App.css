@@ -1,0 +1,31 @@
+/* Custom utility classes for our inventory app */
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Print styles for QR codes */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .print-container,
+  .print-container * {
+    visibility: visible;
+  }
+  
+  .print-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  
+  @page {
+    margin: 1in;
+    size: portrait;
+  }
+}
