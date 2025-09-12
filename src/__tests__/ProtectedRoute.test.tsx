@@ -4,7 +4,8 @@ import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { AuthContext } from '../contexts/auth-context';
-import type { AuthContextType, User } from '../types';
+import type { User } from '../types';
+import type { AuthContextType } from '../contexts/auth-context';
 
 // Mock navigate function
 const mockNavigate = vi.fn();
@@ -12,7 +13,7 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
-    Navigate: ({ to, state }: { to: string; state?: any }) => {
+    Navigate: ({ to, state }: { to: string; state?: { from: { pathname: string } } }) => {
       mockNavigate(to, state);
       return <div data-testid="navigate">{`Navigating to: ${to}`}</div>;
     },

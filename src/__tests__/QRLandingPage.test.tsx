@@ -5,7 +5,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import QRLandingPage from '../pages/QRLandingPage';
 import { AuthContext } from '../contexts/auth-context';
-import type { AuthContextType, User, QRResolveResponse } from '../types';
+import type { User, QRResolveResponse } from '../types';
+import type { AuthContextType } from '../contexts/auth-context';
 import { productService } from '../services/product';
 
 // Mock the product service

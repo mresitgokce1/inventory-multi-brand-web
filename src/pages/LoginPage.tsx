@@ -15,7 +15,7 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     // If already authenticated, redirect to intended destination
     if (isAuthenticated) {
-      const from = (location.state as any)?.from?.pathname || '/dashboard/products';
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard/products';
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, location.state]);
@@ -29,7 +29,7 @@ const LoginPage: React.FC = () => {
       await login(email, password);
       
       // Navigate to intended destination (from location.state) or default
-      const from = (location.state as any)?.from?.pathname || '/dashboard/products';
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard/products';
       navigate(from, { replace: true });
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
