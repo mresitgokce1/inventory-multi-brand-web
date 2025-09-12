@@ -156,7 +156,14 @@ describe('QRModal', () => {
         print: vi.fn(),
         close: vi.fn()
       };
-      (window as typeof window & { open: unknown }).open = vi.fn(() => mockPrintWindow);
+      // Mock window.open for print testing
+      const originalOpen = window.open;
+      window.open = vi.fn(() => mockPrintWindow as unknown as Window | null);
+      
+      // Restore after test
+      return () => {
+        window.open = originalOpen;
+      };
     });
 
     it('should handle print when QR data URL is available', () => {
