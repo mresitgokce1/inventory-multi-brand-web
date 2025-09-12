@@ -4,10 +4,14 @@ import { useAuth } from '../hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  allowedRoles?: ('ADMIN' | 'MANAGER')[];
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  allowedRoles = ['ADMIN', 'MANAGER'] 
+}) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -19,9 +23,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    // Store the current path for redirect after login
-    localStorage.setItem('pending_path', location.pathname + location.search);
-    return <Navigate to="/login" replace />;
+    // Preserve the intended path in location state
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Check role-based access
+  if (user && !allowedRoles.includes(user.role)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <p className="text-gray-600">You don't have permission to access this page.</p>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

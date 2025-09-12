@@ -52,7 +52,8 @@ const QRLandingPage: React.FC = () => {
   const { product_public, product_private } = productData;
   const hasPrivateData = !!product_private;
   const canViewPrivate =
-    isAuthenticated && user && hasPrivateData && user.brand === product_public.brand;
+    isAuthenticated && user && hasPrivateData && 
+    (user.role === 'ADMIN' || (user.brand_id && user.brand_id.toString() === product_public.brand));
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
@@ -165,7 +166,7 @@ const QRLandingPage: React.FC = () => {
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-6">
             <p className="text-orange-800 text-sm">
               <span className="font-medium">Access Restricted:</span> You can only view private
-              information for products from your brand ({user?.brand}).
+              information for products from your brand{user?.brand_id ? ` (Brand ID: ${user.brand_id})` : ''}.
             </p>
           </div>
         )}

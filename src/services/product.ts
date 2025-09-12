@@ -9,7 +9,8 @@ export const productService = {
 
   async getProducts(): Promise<ProductPublic[]> {
     const response = await apiClient.get('/api/products');
-    return response.data;
+    // Handle DRF pagination if present (data.results vs data)
+    return response.data.results || response.data;
   },
 
   async generateQRCode(productId: string): Promise<QRCodeResponse> {

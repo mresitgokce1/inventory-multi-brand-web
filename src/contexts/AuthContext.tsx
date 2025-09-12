@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { User, AuthTokens } from '../types';
+import type { User } from '../types';
 import { authService } from '../services/auth';
 import { AuthContext, type AuthContextType } from './auth-context';
 
@@ -10,25 +10,24 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [tokens, setTokens] = useState<AuthTokens | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Try to restore auth state from localStorage
-    const storedTokens = localStorage.getItem('auth_tokens');
-    const storedUser = localStorage.getItem('auth_user');
+    const storedAccessToken = localStorage.getItem('accessToken');
+    const storedUser = localStorage.getItem('authUser');
     
-    if (storedTokens && storedUser) {
+    if (storedAccessToken && storedUser) {
       try {
-        const parsedTokens = JSON.parse(storedTokens);
         const parsedUser = JSON.parse(storedUser);
-        setTokens(parsedTokens);
+        setAccessToken(storedAccessToken);
         setUser(parsedUser);
-        authService.setAuthTokens(parsedTokens);
+        authService.setAccessToken(storedAccessToken);
       } catch (error) {
         console.error('Failed to restore auth state:', error);
-        localStorage.removeItem('auth_tokens');
-        localStorage.removeItem('auth_user');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('authUser');
       }
     }
     setIsLoading(false);
@@ -37,30 +36,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     const response = await authService.login(email, password);
     setUser(response.user);
-    setTokens(response.tokens);
+    setAccessToken(response.access);
     
     // Persist to localStorage
-    localStorage.setItem('auth_tokens', JSON.stringify(response.tokens));
-    localStorage.setItem('auth_user', JSON.stringify(response.user));
+    localStorage.setItem('accessToken', response.access);
+    localStorage.setItem('authUser', JSON.stringify(response.user));
     
-    authService.setAuthTokens(response.tokens);
+    authService.setAccessToken(response.access);
   };
 
   const logout = () => {
     setUser(null);
-    setTokens(null);
-    localStorage.removeItem('auth_tokens');
-    localStorage.removeItem('auth_user');
+    setAccessToken(null);
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('authUser');
     localStorage.removeItem('pending_path');
-    authService.clearAuthTokens();
+    authService.clearAccessToken();
   };
 
   const value: AuthContextType = {
     user,
-    tokens,
+    accessToken,
     login,
     logout,
-    isAuthenticated: !!user && !!tokens,
+    isAuthenticated: !!user && !!accessToken,
     isLoading,
   };
 

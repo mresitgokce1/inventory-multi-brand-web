@@ -1,8 +1,8 @@
 import axios from 'axios';
 import type { AxiosResponse } from 'axios';
-import type { LoginResponse, AuthTokens } from '../types';
+import type { LoginResponse } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 // Create axios instance
 const apiClient = axios.create({
@@ -10,23 +10,28 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Enable cookies for httpOnly refresh token
 });
 
 class AuthService {
-  private tokens: AuthTokens | null = null;
+  private accessToken: string | null = null;
   private refreshPromise: Promise<string> | null = null;
 
-  setAuthTokens(tokens: AuthTokens) {
-    this.tokens = tokens;
+  setAccessToken(token: string) {
+    this.accessToken = token;
   }
 
-  clearAuthTokens() {
-    this.tokens = null;
+  clearAccessToken() {
+    this.accessToken = null;
     this.refreshPromise = null;
   }
 
+  getAccessToken() {
+    return this.accessToken;
+  }
+
   async login(email: string, password: string): Promise<LoginResponse> {
-    const response: AxiosResponse<LoginResponse> = await apiClient.post('/api/auth/login', {
+    const response: AxiosResponse<LoginResponse> = await apiClient.post('/api/auth/login/', {
       email,
       password,
     });
@@ -34,8 +39,8 @@ class AuthService {
   }
 
   private async refreshAccessToken(): Promise<string> {
-    if (!this.tokens?.refresh) {
-      throw new Error('No refresh token available');
+    if (!this.accessToken) {
+      throw new Error('No access token available for refresh');
     }
 
     // Prevent multiple simultaneous refresh requests
@@ -46,31 +51,38 @@ class AuthService {
     this.refreshPromise = (async () => {
       try {
         const response: AxiosResponse<{ access: string }> = await apiClient.post(
-          '/api/auth/refresh',
-          { refresh: this.tokens!.refresh }
+          '/api/auth/refresh/',
+          {}, // Empty body as per backend contract
+          {
+            headers: {
+              Authorization: `Bearer ${this.accessToken}`,
+            },
+          }
         );
         
         const newAccessToken = response.data.access;
         
-        // Update stored tokens
-        if (this.tokens) {
-          this.tokens.access = newAccessToken;
-          localStorage.setItem('auth_tokens', JSON.stringify(this.tokens));
-        }
+        // Update stored access token
+        this.accessToken = newAccessToken;
+        localStorage.setItem('accessToken', newAccessToken);
         
         return newAccessToken;
       } catch (error) {
         // Refresh failed, clear tokens and redirect to login
-        this.clearAuthTokens();
-        localStorage.removeItem('auth_tokens');
-        localStorage.removeItem('auth_user');
+        this.clearAccessToken();
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('authUser');
         
         // Store current path for redirect after login
-        if (window.location.pathname !== '/login') {
+        if (window.location.pathname !== '/login' && !window.location.pathname.startsWith('/p/')) {
           localStorage.setItem('pending_path', window.location.pathname + window.location.search);
         }
         
-        window.location.href = '/login';
+        // Only redirect if not on QR landing page (public-first)
+        if (!window.location.pathname.startsWith('/p/')) {
+          window.location.href = '/login';
+        }
+        
         throw error;
       } finally {
         this.refreshPromise = null;
@@ -84,8 +96,8 @@ class AuthService {
     // Request interceptor to add auth header
     apiClient.interceptors.request.use(
       (config) => {
-        if (this.tokens?.access) {
-          config.headers.Authorization = `Bearer ${this.tokens.access}`;
+        if (this.accessToken) {
+          config.headers.Authorization = `Bearer ${this.accessToken}`;
         }
         return config;
       },
@@ -100,6 +112,11 @@ class AuthService {
 
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
+
+          // Don't attempt refresh on QR landing pages - they should be public-first
+          if (originalRequest.url?.includes('/api/qr/resolve/')) {
+            return Promise.reject(error);
+          }
 
           try {
             const newAccessToken = await this.refreshAccessToken();

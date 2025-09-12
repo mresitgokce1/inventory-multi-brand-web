@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const LoginPage: React.FC = () => {
@@ -10,19 +10,15 @@ const LoginPage: React.FC = () => {
   
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    // If already authenticated, redirect to pending path or dashboard
+    // If already authenticated, redirect to intended destination
     if (isAuthenticated) {
-      const pendingPath = localStorage.getItem('pending_path');
-      if (pendingPath) {
-        localStorage.removeItem('pending_path');
-        navigate(pendingPath, { replace: true });
-      } else {
-        navigate('/dashboard/products', { replace: true });
-      }
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard/products';
+      navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +28,9 @@ const LoginPage: React.FC = () => {
     try {
       await login(email, password);
       
-      // Redirect will be handled by useEffect above
+      // Navigate to intended destination (from location.state) or default
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard/products';
+      navigate(from, { replace: true });
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       setError(error.response?.data?.message || 'Login failed. Please try again.');
