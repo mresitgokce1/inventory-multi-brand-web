@@ -4,6 +4,7 @@ import { productService } from '../services/product';
 import { useAuth } from '../hooks/useAuth';
 import type { ProductPublic, QRCodeResponse } from '../types';
 import QRModal from '../components/QRModal';
+import { formatPrice } from '../utils/price';
 
 const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
@@ -134,7 +135,7 @@ const DashboardPage: React.FC = () => {
                       {product.name}
                     </h3>
                     <span className="text-lg font-bold text-blue-600">
-                      ${product.price.toFixed(2)}
+                      {formatPrice(product.price)}
                     </span>
                   </div>
                   
