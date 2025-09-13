@@ -11,10 +11,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   allowedRoles = ['ADMIN', 'MANAGER'] 
 }) => {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { user, isHydrating, isAuthenticated } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
+  // Show loading state while hydrating - no redirects during this phase
+  if (isHydrating()) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Loading...</div>
@@ -22,12 +23,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  if (!isAuthenticated) {
+  // After hydration, check authentication status
+  if (!isAuthenticated()) {
     // Preserve the intended path in location state
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // Check role-based access
+  // ADMIN should be allowed even if user.brand_id is null
   if (user && !allowedRoles.includes(user.role)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
