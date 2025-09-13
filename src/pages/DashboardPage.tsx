@@ -1,3 +1,4 @@
+// src/pages/DashboardPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -12,9 +13,10 @@ import ToastContainer from '../components/ToastContainer';
 import { formatPrice } from '../utils/price';
 import { parseError } from '../utils/errors';
 import { toast } from '../utils/toast';
+import { authService } from '../services/auth.ts';
 
 const DashboardPage: React.FC = () => {
-  const { user, logout, isHydrating } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -30,25 +32,22 @@ const DashboardPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
 
-  // Define allowed roles for "Add Product" functionality  
+  // Allowed roles
   const allowedRoles = ['ADMIN', 'BRAND_MANAGER'];
-  const canAddProduct = user && hasRoleAccess(user.role, allowedRoles);
+  const canAddProduct = !!(user && hasRoleAccess(user.role, allowedRoles));
 
-  // Debounce search input
+  // Debounce search
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-    }, 300);
-
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(t);
   }, [searchTerm]);
 
-  // Update URL when search changes
+  // Reflect debounced search in URL
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
     if (debouncedSearch) {
       params.set('search', debouncedSearch);
-      params.set('page', '1'); // Reset to first page on search
+      params.set('page', '1');
     } else {
       params.delete('search');
     }
@@ -82,14 +81,14 @@ const DashboardPage: React.FC = () => {
   const generateQRMutation = useMutation({
     mutationFn: (productId: string) => productService.generateQRCode(productId),
     onSuccess: (data, productId) => {
-      const product = products?.find((p) => p.id === productId);
+      const product = products.find((p) => p.id === productId);
       if (product) {
         setSelectedProduct(product);
         setQrData(data);
       }
     },
-    onError: (error: unknown) => {
-      const parsed = parseError(error);
+    onError: (err: unknown) => {
+      const parsed = parseError(err);
       toast.error(parsed.message);
     },
   });
@@ -101,8 +100,8 @@ const DashboardPage: React.FC = () => {
       setDeleteProduct(null);
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
-    onError: (error: unknown) => {
-      const parsed = parseError(error);
+    onError: (err: unknown) => {
+      const parsed = parseError(err);
       toast.error(parsed.message);
     },
   });
@@ -121,14 +120,10 @@ const DashboardPage: React.FC = () => {
   };
 
   const handleDeleteConfirm = () => {
-    if (deleteProduct) {
-      deleteProductMutation.mutate(deleteProduct.id);
-    }
+    if (deleteProduct) deleteProductMutation.mutate(deleteProduct.id);
   };
 
-  const handleDeleteCancel = () => {
-    setDeleteProduct(null);
-  };
+  const handleDeleteCancel = () => setDeleteProduct(null);
 
   const handleViewProduct = (product: ProductListItem) => {
     navigate(`/dashboard/products/${product.id}`);
@@ -136,17 +131,10 @@ const DashboardPage: React.FC = () => {
 
   const handleSort = (field: string) => {
     const params = new URLSearchParams(searchParams);
-    const currentOrdering = params.get('ordering');
-    
-    // Toggle between ascending and descending
-    if (currentOrdering === field) {
-      params.set('ordering', `-${field}`);
-    } else if (currentOrdering === `-${field}`) {
-      params.delete('ordering');
-    } else {
-      params.set('ordering', field);
-    }
-    
+    const current = params.get('ordering');
+    if (current === field) params.set('ordering', `-${field}`);
+    else if (current === `-${field}`) params.delete('ordering');
+    else params.set('ordering', field);
     setSearchParams(params);
   };
 
@@ -158,12 +146,13 @@ const DashboardPage: React.FC = () => {
 
   const getSortIcon = (field: string) => {
     const ordering = searchParams.get('ordering');
-    if (ordering === field) {
-      return '↑';
-    } else if (ordering === `-${field}`) {
-      return '↓';
-    }
+    if (ordering === field) return '↑';
+    if (ordering === `-${field}`) return '↓';
     return '↕';
+    };
+
+  const handleLogout = () => {
+    authService.logout();
   };
 
   if (isLoading) {
@@ -183,9 +172,7 @@ const DashboardPage: React.FC = () => {
         <div className="text-center max-w-md">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Failed to Load Products</h1>
-          <p className="text-gray-600 mb-4">
-            Unable to retrieve your products. Please try again.
-          </p>
+          <p className="text-gray-600 mb-4">Unable to retrieve your products. Please try again.</p>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ['products'] })}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
@@ -206,11 +193,12 @@ const DashboardPage: React.FC = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Product Dashboard</h1>
               <p className="text-sm text-gray-600">
-                Welcome back, {user?.email}{user?.brand_id ? ` (Brand ID: ${user.brand_id})` : ' (Global Admin)'}
+                Welcome back, {user?.email}
+                {user?.brand_id ? ` (Brand ID: ${user.brand_id})` : ' (Global Admin)'}
               </p>
             </div>
             <div className="flex gap-3">
-              {canAddProduct && !isHydrating() && (
+              {canAddProduct && (
                 <>
                   <a
                     href="/dashboard/categories/new"
@@ -227,7 +215,7 @@ const DashboardPage: React.FC = () => {
                 </>
               )}
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 text-sm"
               >
                 Sign Out
@@ -237,7 +225,7 @@ const DashboardPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -247,7 +235,7 @@ const DashboardPage: React.FC = () => {
             </p>
           </div>
 
-          {/* Search and filters */}
+          {/* Search */}
           <div className="mt-4 sm:mt-0 flex gap-4">
             <div className="relative">
               <input
@@ -276,7 +264,7 @@ const DashboardPage: React.FC = () => {
             <p className="text-gray-600 mb-4">
               {searchTerm ? 'No products match your search criteria.' : "You don't have any products yet."}
             </p>
-            {canAddProduct && !isHydrating() && (
+            {canAddProduct && (
               <button
                 onClick={() => navigate('/dashboard/products/new')}
                 className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 font-medium"
@@ -287,31 +275,31 @@ const DashboardPage: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Products Table */}
+            {/* Table */}
             <div className="bg-white shadow overflow-hidden sm:rounded-md">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('name')}
                       >
                         Name {getSortIcon('name')}
                       </th>
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('sku')}
                       >
                         SKU {getSortIcon('sku')}
                       </th>
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('price')}
                       >
                         Price {getSortIcon('price')}
                       </th>
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('stock')}
                       >
@@ -323,7 +311,7 @@ const DashboardPage: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Brand
                       </th>
-                      <th 
+                      <th
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('updated_at')}
                       >
@@ -341,10 +329,10 @@ const DashboardPage: React.FC = () => {
                           <div className="flex items-center">
                             {product.image && (
                               <div className="flex-shrink-0 h-10 w-10">
-                                <img 
-                                  className="h-10 w-10 rounded-full object-cover" 
-                                  src={product.image} 
-                                  alt={product.name} 
+                                <img
+                                  className="h-10 w-10 rounded-full object-cover"
+                                  src={product.image}
+                                  alt={product.name}
                                 />
                               </div>
                             )}
@@ -413,16 +401,16 @@ const DashboardPage: React.FC = () => {
             </div>
 
             {/* Pagination */}
-            {totalCount > queryParams.page_size! && (
+            {totalCount > (queryParams.page_size || 20) && (
               <div className="mt-6 flex items-center justify-between">
                 <div className="text-sm text-gray-700">
-                  Showing {((queryParams.page! - 1) * queryParams.page_size!) + 1} to{' '}
-                  {Math.min(queryParams.page! * queryParams.page_size!, totalCount)} of{' '}
+                  Showing {((queryParams.page || 1) - 1) * (queryParams.page_size || 20) + 1} to{' '}
+                  {Math.min((queryParams.page || 1) * (queryParams.page_size || 20), totalCount)} of{' '}
                   {totalCount} results
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handlePageChange(queryParams.page! - 1)}
+                    onClick={() => handlePageChange((queryParams.page || 1) - 1)}
                     disabled={!hasPreviousPage}
                     className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -432,7 +420,7 @@ const DashboardPage: React.FC = () => {
                     Page {queryParams.page}
                   </span>
                   <button
-                    onClick={() => handlePageChange(queryParams.page! + 1)}
+                    onClick={() => handlePageChange((queryParams.page || 1) + 1)}
                     disabled={!hasNextPage}
                     className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -467,7 +455,7 @@ const DashboardPage: React.FC = () => {
         />
       )}
 
-      {/* Toast Container */}
+      {/* Toasts */}
       <ToastContainer />
     </div>
   );

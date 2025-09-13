@@ -7,6 +7,7 @@ import ErrorBoundary from './ErrorBoundary';
 
 // Pages
 import LoginPage from '../pages/LoginPage';
+import LogoutPage from '../pages/LogoutPage';
 import QRLandingPage from '../pages/QRLandingPage';
 import DashboardPage from '../pages/DashboardPage';
 import CreateCategoryPage from '../pages/CreateCategoryPage';
@@ -35,6 +36,7 @@ const AppRouter: React.FC = () => {
           <Router>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/logout" element={<LogoutPage />} />
               <Route path="/p/:code" element={<QRLandingPage />} />
               <Route
                 path="/dashboard/products"
