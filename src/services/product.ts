@@ -143,6 +143,6 @@ export const productService = {
   },
 
   async deleteProduct(id: string): Promise<void> {
-    await apiClient.delete(`/api/products/${id}`);
+    await apiClient.delete(`/api/products/${id}/`);
   },
 };
