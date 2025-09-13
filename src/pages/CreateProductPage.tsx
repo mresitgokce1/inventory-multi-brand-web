@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { productService } from '../services/product';
 import { generateSlug } from '../utils/slug';
 import { normalizePriceForAPI } from '../utils/price';
+import { parseError } from '../utils/errors';
+import { toast } from '../utils/toast';
 import type { Category } from '../types';
 
 const CreateProductPage: React.FC = () => {
@@ -20,6 +22,7 @@ const CreateProductPage: React.FC = () => {
   const [image, setImage] = useState<File | null>(null);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [globalError, setGlobalError] = useState('');
 
   // Fetch categories for the dropdown
   const {
@@ -35,17 +38,20 @@ const CreateProductPage: React.FC = () => {
     mutationFn: (data: FormData) => productService.createProduct(data),
     onSuccess: (data: unknown) => {
       const productData = data as { name?: string };
-      // Show success message
-      alert(`Product "${productData.name || 'New product'}" created successfully!`);
+      toast.success(`Product "${productData.name || 'New product'}" created successfully!`);
       navigate('/dashboard/products');
     },
     onError: (error: unknown) => {
-      const errorData = error as { response?: { data?: Record<string, string> } };
-      if (errorData.response?.data && typeof errorData.response.data === 'object') {
-        setErrors(errorData.response.data);
-      } else {
-        setErrors({ general: 'Failed to create product. Please try again.' });
-      }
+      const parsed = parseError(error);
+      setGlobalError(parsed.message);
+      setErrors(
+        Object.fromEntries(
+          Object.entries(parsed.fieldErrors).map(([field, messages]) => [
+            field,
+            messages[0],
+          ])
+        )
+      );
     },
   });
 
@@ -83,6 +89,8 @@ const CreateProductPage: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+    setGlobalError('');
     
     // Basic validation
     const newErrors: Record<string, string> = {};
@@ -206,9 +214,9 @@ const CreateProductPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow-lg p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* General Error */}
-            {errors.general && (
+            {globalError && (
               <div className="rounded-md bg-red-50 p-4">
-                <div className="text-sm text-red-700">{errors.general}</div>
+                <div className="text-sm text-red-700">{globalError}</div>
               </div>
             )}
 

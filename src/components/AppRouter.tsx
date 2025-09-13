@@ -11,6 +11,7 @@ import QRLandingPage from '../pages/QRLandingPage';
 import DashboardPage from '../pages/DashboardPage';
 import CreateCategoryPage from '../pages/CreateCategoryPage';
 import CreateProductPage from '../pages/CreateProductPage';
+import ProductDetailPage from '../pages/ProductDetailPage';
 import ProtectedRoute from './ProtectedRoute';
 
 // Setup auth interceptors
@@ -56,6 +57,14 @@ const AppRouter: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <CreateProductPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/products/:id"
+                element={
+                  <ProtectedRoute>
+                    <ProductDetailPage />
                   </ProtectedRoute>
                 }
               />
