@@ -37,10 +37,13 @@ export interface ProductListItem {
   id: string;
   name: string;
   price: string;
+  sku?: string;
+  stock?: number;
   image?: string;
   brand: string;
   category: string;
   description?: string;
+  updatedAt?: string;
 }
 
 export interface User {

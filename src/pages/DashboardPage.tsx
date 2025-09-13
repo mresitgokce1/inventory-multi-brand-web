@@ -1,25 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { productService } from '../services/product';
+import type { ProductsQueryParams, ProductsListResponse } from '../services/product';
 import { useAuth } from '../hooks/useAuth';
+import { hasRoleAccess } from '../utils/roles';
 import type { ProductListItem, QRCodeResponse } from '../types';
 import QRModal from '../components/QRModal';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import ToastContainer from '../components/ToastContainer';
 import { formatPrice } from '../utils/price';
+import { parseError } from '../utils/errors';
+import { toast } from '../utils/toast';
 
 const DashboardPage: React.FC = () => {
-  const { user, logout } = useAuth();
-  const [selectedProduct, setSelectedProduct] = useState<ProductListItem | null>(null);
-  const [qrData, setQrData] = useState<QRCodeResponse | null>(null);
+  const { user, logout, isHydrating } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
+  // QR generation state
+  const [selectedProduct, setSelectedProduct] = useState<ProductListItem | null>(null);
+  const [qrData, setQrData] = useState<QRCodeResponse | null>(null);
+
+  // Delete confirmation state
+  const [deleteProduct, setDeleteProduct] = useState<ProductListItem | null>(null);
+
+  // Search and filter state
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+
+  // Define allowed roles for "Add Product" functionality  
+  const allowedRoles = ['ADMIN', 'BRAND_MANAGER'];
+  const canAddProduct = user && hasRoleAccess(user.role, allowedRoles);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Update URL when search changes
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    if (debouncedSearch) {
+      params.set('search', debouncedSearch);
+      params.set('page', '1'); // Reset to first page on search
+    } else {
+      params.delete('search');
+    }
+    setSearchParams(params, { replace: true });
+  }, [debouncedSearch, setSearchParams, searchParams]);
+
+  // Parse query parameters
+  const queryParams: ProductsQueryParams = {
+    page: parseInt(searchParams.get('page') || '1'),
+    page_size: parseInt(searchParams.get('page_size') || '20'),
+    search: searchParams.get('search') || undefined,
+    category: searchParams.get('category') || undefined,
+    brand: searchParams.get('brand') || undefined,
+    ordering: searchParams.get('ordering') || undefined,
+  };
+
   const {
-    data: products,
+    data: productsResponse,
     isLoading,
     error,
-  } = useQuery<ProductListItem[]>({
-    queryKey: ['products'],
-    queryFn: productService.getProducts,
+  } = useQuery<ProductsListResponse>({
+    queryKey: ['products', queryParams],
+    queryFn: () => productService.getProducts(queryParams),
   });
+
+  const products = productsResponse?.results || [];
+  const totalCount = productsResponse?.count || 0;
+  const hasNextPage = !!productsResponse?.next;
+  const hasPreviousPage = !!productsResponse?.previous;
 
   const generateQRMutation = useMutation({
     mutationFn: (productId: string) => productService.generateQRCode(productId),
@@ -31,8 +89,21 @@ const DashboardPage: React.FC = () => {
       }
     },
     onError: (error: unknown) => {
-      const err = error as { response?: { data?: { message?: string } } };
-      alert(err.response?.data?.message || 'Failed to generate QR code');
+      const parsed = parseError(error);
+      toast.error(parsed.message);
+    },
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: (productId: string) => productService.deleteProduct(productId),
+    onSuccess: () => {
+      toast.success('Product deleted successfully');
+      setDeleteProduct(null);
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+    onError: (error: unknown) => {
+      const parsed = parseError(error);
+      toast.error(parsed.message);
     },
   });
 
@@ -43,6 +114,56 @@ const DashboardPage: React.FC = () => {
   const handleCloseModal = () => {
     setSelectedProduct(null);
     setQrData(null);
+  };
+
+  const handleDeleteClick = (product: ProductListItem) => {
+    setDeleteProduct(product);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteProduct) {
+      deleteProductMutation.mutate(deleteProduct.id);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteProduct(null);
+  };
+
+  const handleViewProduct = (product: ProductListItem) => {
+    navigate(`/dashboard/products/${product.id}`);
+  };
+
+  const handleSort = (field: string) => {
+    const params = new URLSearchParams(searchParams);
+    const currentOrdering = params.get('ordering');
+    
+    // Toggle between ascending and descending
+    if (currentOrdering === field) {
+      params.set('ordering', `-${field}`);
+    } else if (currentOrdering === `-${field}`) {
+      params.delete('ordering');
+    } else {
+      params.set('ordering', field);
+    }
+    
+    setSearchParams(params);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('page', newPage.toString());
+    setSearchParams(params);
+  };
+
+  const getSortIcon = (field: string) => {
+    const ordering = searchParams.get('ordering');
+    if (ordering === field) {
+      return '↑';
+    } else if (ordering === `-${field}`) {
+      return '↓';
+    }
+    return '↕';
   };
 
   if (isLoading) {
@@ -89,7 +210,7 @@ const DashboardPage: React.FC = () => {
               </p>
             </div>
             <div className="flex gap-3">
-              {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+              {canAddProduct && !isHydrating() && (
                 <>
                   <a
                     href="/dashboard/categories/new"
@@ -118,11 +239,34 @@ const DashboardPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-2">Your Products</h2>
-          <p className="text-sm text-gray-600">
-            Generate QR codes for your products to enable easy scanning and information access.
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-medium text-gray-900 mb-2">Your Products</h2>
+            <p className="text-sm text-gray-600">
+              Manage your product inventory with search, filters, and bulk actions.
+            </p>
+          </div>
+
+          {/* Search and filters */}
+          <div className="mt-4 sm:mt-0 flex gap-4">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-64 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {!products || products.length === 0 ? (
@@ -130,66 +274,174 @@ const DashboardPage: React.FC = () => {
             <div className="text-gray-400 text-6xl mb-4">📦</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Products Found</h3>
             <p className="text-gray-600 mb-4">
-              You don't have any products yet. 
+              {searchTerm ? 'No products match your search criteria.' : "You don't have any products yet."}
             </p>
-            {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
-              <a
-                href="/dashboard/products/new"
+            {canAddProduct && !isHydrating() && (
+              <button
+                onClick={() => navigate('/dashboard/products/new')}
                 className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 font-medium"
               >
-                Create Your First Product
-              </a>
+                {searchTerm ? 'Clear Search' : 'Create Your First Product'}
+              </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-              >
-                {product.image && (
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-48 object-cover"
-                  />
-                )}
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900 truncate">
-                      {product.name}
-                    </h3>
-                    <span className="text-lg font-bold text-blue-600">
-                      {formatPrice(product.price)}
-                    </span>
-                  </div>
-                  
-                  <div className="flex gap-2 mb-3">
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                      {product.category}
-                    </span>
-                  </div>
+          <>
+            {/* Products Table */}
+            <div className="bg-white shadow overflow-hidden sm:rounded-md">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('name')}
+                      >
+                        Name {getSortIcon('name')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('sku')}
+                      >
+                        SKU {getSortIcon('sku')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('price')}
+                      >
+                        Price {getSortIcon('price')}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('stock')}
+                      >
+                        Stock {getSortIcon('stock')}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Category
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Brand
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('updated_at')}
+                      >
+                        Updated {getSortIcon('updated_at')}
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {products.map((product) => (
+                      <tr key={product.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            {product.image && (
+                              <div className="flex-shrink-0 h-10 w-10">
+                                <img 
+                                  className="h-10 w-10 rounded-full object-cover" 
+                                  src={product.image} 
+                                  alt={product.name} 
+                                />
+                              </div>
+                            )}
+                            <div className={product.image ? 'ml-4' : ''}>
+                              <div className="text-sm font-medium text-gray-900">
+                                {product.name}
+                              </div>
+                              {product.description && (
+                                <div className="text-sm text-gray-500 max-w-xs truncate">
+                                  {product.description}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {product.sku || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {formatPrice(product.price)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {product.stock ?? '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                            {product.category}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {product.brand}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleViewProduct(product)}
+                              className="text-indigo-600 hover:text-indigo-900 text-sm"
+                            >
+                              View/Edit
+                            </button>
+                            <button
+                              onClick={() => handleGenerateQR(product)}
+                              disabled={generateQRMutation.isPending}
+                              className="text-blue-600 hover:text-blue-900 text-sm disabled:opacity-50"
+                            >
+                              QR Code
+                            </button>
+                            {canAddProduct && (
+                              <button
+                                onClick={() => handleDeleteClick(product)}
+                                className="text-red-600 hover:text-red-900 text-sm"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-                  {product.description && (
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {product.description}
-                    </p>
-                  )}
-
+            {/* Pagination */}
+            {totalCount > queryParams.page_size! && (
+              <div className="mt-6 flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  Showing {((queryParams.page! - 1) * queryParams.page_size!) + 1} to{' '}
+                  {Math.min(queryParams.page! * queryParams.page_size!, totalCount)} of{' '}
+                  {totalCount} results
+                </div>
+                <div className="flex gap-2">
                   <button
-                    onClick={() => handleGenerateQR(product)}
-                    disabled={generateQRMutation.isPending}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                    onClick={() => handlePageChange(queryParams.page! - 1)}
+                    disabled={!hasPreviousPage}
+                    className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {generateQRMutation.isPending && generateQRMutation.variables === product.id
-                      ? 'Generating...'
-                      : 'Generate QR Code'}
+                    Previous
+                  </button>
+                  <span className="px-3 py-2 text-sm font-medium text-gray-700">
+                    Page {queryParams.page}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(queryParams.page! + 1)}
+                    disabled={!hasNextPage}
+                    className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </main>
 
@@ -202,6 +454,21 @@ const DashboardPage: React.FC = () => {
           qrData={qrData}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteProduct && (
+        <ConfirmDeleteModal
+          isOpen={true}
+          onClose={handleDeleteCancel}
+          onConfirm={handleDeleteConfirm}
+          title="Delete Product"
+          message={`Are you sure you want to delete "${deleteProduct.name}"? This action cannot be undone.`}
+          isLoading={deleteProductMutation.isPending}
+        />
+      )}
+
+      {/* Toast Container */}
+      <ToastContainer />
     </div>
   );
 };
