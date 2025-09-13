@@ -95,6 +95,7 @@ class AuthService {
             headers: {
               Authorization: `Bearer ${this.accessToken}`,
             },
+            withCredentials: true, // Ensure httpOnly cookie is sent
           }
         );
         
@@ -138,11 +139,12 @@ class AuthService {
           headers: {
             Authorization: `Bearer ${storedToken}`,
           },
+          withCredentials: true, // Ensure httpOnly cookie is sent
         }
       );
 
       return response.data;
-    } catch (error) {
+    } catch {
       // Silent refresh failed, clear stored data
       localStorage.removeItem('accessToken');
       localStorage.removeItem('authUser');
@@ -205,6 +207,12 @@ class AuthService {
 
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
+
+          // Don't attempt refresh on auth endpoints to prevent loops
+          if (originalRequest.url?.includes('/api/auth/login/') || 
+              originalRequest.url?.includes('/api/auth/refresh/')) {
+            return Promise.reject(error);
+          }
 
           // Don't attempt refresh on QR landing pages - they should be public-first
           if (originalRequest.url?.includes('/api/qr/resolve/')) {

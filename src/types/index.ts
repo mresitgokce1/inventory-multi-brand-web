@@ -46,7 +46,7 @@ export interface ProductListItem {
 export interface User {
   id: number;
   email: string;
-  role: 'ADMIN' | 'MANAGER';
+  role: 'ADMIN' | 'MANAGER' | 'BRAND_MANAGER' | 'STAFF';
   brand_id: number | null;
 }
 
