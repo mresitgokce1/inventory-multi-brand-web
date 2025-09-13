@@ -16,7 +16,7 @@ import { toast } from '../utils/toast';
 import { authService } from '../services/auth.ts';
 
 const DashboardPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hydrating } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -33,8 +33,9 @@ const DashboardPage: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
 
   // Allowed roles
-  const allowedRoles = ['ADMIN', 'BRAND_MANAGER'];
-  const canAddProduct = !!(user && hasRoleAccess(user.role, allowedRoles));
+  const canAddProduct = !hydrating && user?.role === "ADMIN";
+
+  
 
   // Debounce search
   useEffect(() => {
@@ -202,7 +203,7 @@ const DashboardPage: React.FC = () => {
                 <>
                   <a
                     href="/dashboard/categories/new"
-                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 text-sm font-medium"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-medium"
                   >
                     Add Category
                   </a>

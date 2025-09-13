@@ -31,11 +31,11 @@ const LoginPage: React.FC = () => {
     try {
       const resp = await authService.login(email, password);
       // Kullanıcıyı context'e yaz
-      setUser(resp.user);
       // Erişim token'ını sakla ve yenilemeyi planla
       localStorage.setItem('authUser', JSON.stringify(resp.user));
       localStorage.setItem('accessToken', resp.access);
       authService.setAccessToken(resp.access);
+      setUser(resp.user);
 
       const from = ((location.state as FromState)?.from?.pathname) || '/dashboard/products';
       navigate(from, { replace: true });

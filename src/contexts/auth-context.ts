@@ -6,6 +6,7 @@ export type AuthStatus = 'hydrating' | 'authenticated' | 'unauthenticated';
 export interface AuthContextType {
   user: User | null;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  hydrating?: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
