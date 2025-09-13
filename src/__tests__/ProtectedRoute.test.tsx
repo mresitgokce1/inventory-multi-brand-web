@@ -35,34 +35,41 @@ const renderProtectedRoute = (authValue: AuthContextType, allowedRoles?: ('ADMIN
 describe('ProtectedRoute', () => {
   const mockLogin = vi.fn();
   const mockLogout = vi.fn();
+  const mockGetAccessToken = vi.fn();
+  const mockIsAuthenticated = vi.fn();
+  const mockIsHydrating = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockNavigate.mockClear();
   });
 
-  it('should show loading state when auth is loading', () => {
+  it('should show loading state when hydrating', () => {
     const authValue: AuthContextType = {
       user: null,
       accessToken: null,
+      status: 'hydrating',
       login: mockLogin,
       logout: mockLogout,
-      isAuthenticated: false,
-      isLoading: true,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(false),
+      isHydrating: mockIsHydrating.mockReturnValue(true),
     };
 
     renderProtectedRoute(authValue);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('should redirect to login when user is not authenticated', () => {
+  it('should redirect to login when user is unauthenticated', () => {
     const authValue: AuthContextType = {
       user: null,
       accessToken: null,
+      status: 'unauthenticated',
       login: mockLogin,
       logout: mockLogout,
-      isAuthenticated: false,
-      isLoading: false,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(false),
+      isHydrating: mockIsHydrating.mockReturnValue(false),
     };
 
     renderProtectedRoute(authValue);
@@ -86,10 +93,12 @@ describe('ProtectedRoute', () => {
     const authValue: AuthContextType = {
       user,
       accessToken: 'valid-token',
+      status: 'authenticated',
       login: mockLogin,
       logout: mockLogout,
-      isAuthenticated: true,
-      isLoading: false,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(true),
+      isHydrating: mockIsHydrating.mockReturnValue(false),
     };
 
     renderProtectedRoute(authValue);
@@ -108,10 +117,12 @@ describe('ProtectedRoute', () => {
     const authValue: AuthContextType = {
       user,
       accessToken: 'valid-token',
+      status: 'authenticated',
       login: mockLogin,
       logout: mockLogout,
-      isAuthenticated: true,
-      isLoading: false,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(true),
+      isHydrating: mockIsHydrating.mockReturnValue(false),
     };
 
     renderProtectedRoute(authValue);
@@ -129,10 +140,12 @@ describe('ProtectedRoute', () => {
     const authValue: AuthContextType = {
       user,
       accessToken: 'valid-token',
+      status: 'authenticated',
       login: mockLogin,
       logout: mockLogout,
-      isAuthenticated: true,
-      isLoading: false,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(true),
+      isHydrating: mockIsHydrating.mockReturnValue(false),
     };
 
     // Only allow ADMIN
@@ -153,10 +166,12 @@ describe('ProtectedRoute', () => {
     const authValue: AuthContextType = {
       user,
       accessToken: 'valid-token',
+      status: 'authenticated',
       login: mockLogin,
       logout: mockLogout,
-      isAuthenticated: true,
-      isLoading: false,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(true),
+      isHydrating: mockIsHydrating.mockReturnValue(false),
     };
 
     renderProtectedRoute(authValue);
@@ -174,10 +189,12 @@ describe('ProtectedRoute', () => {
     const authValue: AuthContextType = {
       user,
       accessToken: 'valid-token',
+      status: 'authenticated',
       login: mockLogin,
       logout: mockLogout,
-      isAuthenticated: true,
-      isLoading: false,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(true),
+      isHydrating: mockIsHydrating.mockReturnValue(false),
     };
 
     // Should default to both ADMIN and MANAGER

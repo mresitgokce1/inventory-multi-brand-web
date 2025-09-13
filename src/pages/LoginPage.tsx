@@ -8,17 +8,17 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, isHydrating } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    // If already authenticated, redirect to intended destination
-    if (isAuthenticated) {
+    // Only redirect after hydration is complete and user is actually authenticated
+    if (!isHydrating() && isAuthenticated()) {
       const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard/products';
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate, location.state]);
+  }, [isAuthenticated, isHydrating, navigate, location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,8 +39,23 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard/products" replace />;
+  // Show loading while hydrating
+  if (isHydrating()) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="flex items-center justify-center">
+            <div className="text-lg">Checking authentication...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if already authenticated after hydration
+  if (isAuthenticated()) {
+    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard/products';
+    return <Navigate to={from} replace />;
   }
 
   return (

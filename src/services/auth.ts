@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AxiosResponse } from 'axios';
 import type { LoginResponse } from '../types';
+import { getTimeUntilExpiry } from '../utils/jwt';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
@@ -16,18 +17,55 @@ const apiClient = axios.create({
 class AuthService {
   private accessToken: string | null = null;
   private refreshPromise: Promise<string> | null = null;
+  private refreshTimer: number | null = null;
+  private onLogout: (() => void) | null = null;
 
   setAccessToken(token: string) {
     this.accessToken = token;
+    this.scheduleRefresh(token);
   }
 
   clearAccessToken() {
     this.accessToken = null;
     this.refreshPromise = null;
+    this.clearRefreshTimer();
   }
 
   getAccessToken() {
     return this.accessToken;
+  }
+
+  setLogoutCallback(callback: () => void) {
+    this.onLogout = callback;
+  }
+
+  private clearRefreshTimer() {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  private scheduleRefresh(token: string) {
+    this.clearRefreshTimer();
+    
+    const timeUntilExpiry = getTimeUntilExpiry(token);
+    if (!timeUntilExpiry || timeUntilExpiry <= 0) {
+      // Token already expired or can't determine expiry
+      return;
+    }
+
+    // Schedule refresh 60 seconds before expiry, with minimum 30 seconds delay
+    const refreshDelay = Math.max(timeUntilExpiry - 60000, 30000);
+    
+    this.refreshTimer = window.setTimeout(async () => {
+      try {
+        await this.refreshAccessToken();
+      } catch (error) {
+        console.warn('Scheduled token refresh failed:', error);
+        // Logout will be handled by refresh method
+      }
+    }, refreshDelay);
   }
 
   async login(email: string, password: string): Promise<LoginResponse> {
@@ -38,7 +76,7 @@ class AuthService {
     return response.data;
   }
 
-  private async refreshAccessToken(): Promise<string> {
+  async refreshAccessToken(): Promise<string> {
     if (!this.accessToken) {
       throw new Error('No access token available for refresh');
     }
@@ -66,23 +104,13 @@ class AuthService {
         this.accessToken = newAccessToken;
         localStorage.setItem('accessToken', newAccessToken);
         
+        // Schedule next refresh
+        this.scheduleRefresh(newAccessToken);
+        
         return newAccessToken;
       } catch (error) {
-        // Refresh failed, clear tokens and redirect to login
-        this.clearAccessToken();
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('authUser');
-        
-        // Store current path for redirect after login
-        if (window.location.pathname !== '/login' && !window.location.pathname.startsWith('/p/')) {
-          localStorage.setItem('pending_path', window.location.pathname + window.location.search);
-        }
-        
-        // Only redirect if not on QR landing page (public-first)
-        if (!window.location.pathname.startsWith('/p/')) {
-          window.location.href = '/login';
-        }
-        
+        // Refresh failed, trigger logout
+        this.performLogout();
         throw error;
       } finally {
         this.refreshPromise = null;
@@ -90,6 +118,71 @@ class AuthService {
     })();
 
     return this.refreshPromise;
+  }
+
+  /**
+   * Attempt silent refresh using stored token and httpOnly refresh cookie
+   * Used during app startup for rehydration
+   */
+  async attemptSilentRefresh(): Promise<{ access: string } | null> {
+    const storedToken = localStorage.getItem('accessToken');
+    if (!storedToken) {
+      return null;
+    }
+
+    try {
+      const response: AxiosResponse<{ access: string }> = await apiClient.post(
+        '/api/auth/refresh/',
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${storedToken}`,
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      // Silent refresh failed, clear stored data
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('authUser');
+      return null;
+    }
+  }
+
+  private performLogout() {
+    // Clear tokens and timers
+    this.clearAccessToken();
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('authUser');
+    localStorage.removeItem('pending_path');
+
+    // Store current path for redirect after login (if not on public pages)
+    if (window.location.pathname !== '/login' && !window.location.pathname.startsWith('/p/')) {
+      localStorage.setItem('pending_path', window.location.pathname + window.location.search);
+    }
+
+    // Trigger logout callback if set
+    if (this.onLogout) {
+      this.onLogout();
+    }
+
+    // Only redirect if not on QR landing page (public-first)
+    if (!window.location.pathname.startsWith('/p/')) {
+      window.location.href = '/login';
+    }
+  }
+
+  async logout() {
+    // Optional: call backend logout endpoint to clear refresh cookie
+    try {
+      await apiClient.post('/api/auth/logout/', {});
+    } catch (error) {
+      // Backend logout not available or failed, continue with client-side cleanup
+      console.warn('Backend logout failed:', error);
+    }
+
+    this.performLogout();
   }
 
   setupInterceptors() {
