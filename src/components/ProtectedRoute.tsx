@@ -1,15 +1,16 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { hasRoleAccess, normalizeRole } from '../utils/roles';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('ADMIN' | 'MANAGER')[];
+  allowedRoles?: string[];
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  allowedRoles = ['ADMIN', 'MANAGER'] 
+  allowedRoles = ['ADMIN', 'BRAND_MANAGER', 'MANAGER'] // Updated defaults 
 }) => {
   const { user, isHydrating, isAuthenticated } = useAuth();
   const location = useLocation();
@@ -29,9 +30,24 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check role-based access
+  // Check role-based access using normalized roles
   // ADMIN should be allowed even if user.brand_id is null
-  if (user && !allowedRoles.includes(user.role)) {
+  if (user && !hasRoleAccess(user.role, allowedRoles)) {
+    // Development diagnostic logging
+    if (import.meta.env.DEV) {
+      console.warn('ProtectedRoute Access Denied:', {
+        route: location.pathname,
+        userRole: {
+          raw: user.role,
+          normalized: normalizeRole(user.role)
+        },
+        allowedRoles: allowedRoles,
+        normalizedAllowedRoles: allowedRoles.map(role => normalizeRole(role)),
+        brandId: user.brand_id,
+        userId: user.id
+      });
+    }
+
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

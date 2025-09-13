@@ -20,7 +20,7 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const renderProtectedRoute = (authValue: AuthContextType, allowedRoles?: ('ADMIN' | 'MANAGER')[]) => {
+const renderProtectedRoute = (authValue: AuthContextType, allowedRoles?: string[]) => {
   return render(
     <MemoryRouter initialEntries={['/dashboard/products']}>
       <AuthContext.Provider value={authValue}>
@@ -197,8 +197,105 @@ describe('ProtectedRoute', () => {
       isHydrating: mockIsHydrating.mockReturnValue(false),
     };
 
-    // Should default to both ADMIN and MANAGER
+    // Should default to ADMIN, BRAND_MANAGER, and MANAGER
     renderProtectedRoute(authValue);
     expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+  });
+
+  it('should allow access for authenticated BRAND_MANAGER user', () => {
+    const user: User = {
+      id: 3,
+      email: 'brandmanager@test.com',
+      role: 'BRAND_MANAGER',
+      brand_id: 456,
+    };
+
+    const authValue: AuthContextType = {
+      user,
+      accessToken: 'valid-token',
+      status: 'authenticated',
+      login: mockLogin,
+      logout: mockLogout,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(true),
+      isHydrating: mockIsHydrating.mockReturnValue(false),
+    };
+
+    renderProtectedRoute(authValue);
+    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+  });
+
+  it('should allow BRAND_MANAGER to access dashboard routes', () => {
+    const user: User = {
+      id: 3,
+      email: 'brandmanager@test.com',
+      role: 'BRAND_MANAGER',
+      brand_id: 456,
+    };
+
+    const authValue: AuthContextType = {
+      user,
+      accessToken: 'valid-token',
+      status: 'authenticated',
+      login: mockLogin,
+      logout: mockLogout,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(true),
+      isHydrating: mockIsHydrating.mockReturnValue(false),
+    };
+
+    // Explicitly allow only ADMIN and BRAND_MANAGER
+    renderProtectedRoute(authValue, ['ADMIN', 'BRAND_MANAGER']);
+    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+  });
+
+  it('should normalize roles and allow MANAGER as alias for BRAND_MANAGER', () => {
+    const user: User = {
+      id: 2,
+      email: 'manager@test.com',
+      role: 'MANAGER',
+      brand_id: 123,
+    };
+
+    const authValue: AuthContextType = {
+      user,
+      accessToken: 'valid-token',
+      status: 'authenticated',
+      login: mockLogin,
+      logout: mockLogout,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(true),
+      isHydrating: mockIsHydrating.mockReturnValue(false),
+    };
+
+    // Allow only BRAND_MANAGER, but MANAGER should be normalized to BRAND_MANAGER
+    renderProtectedRoute(authValue, ['BRAND_MANAGER']);
+    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+  });
+
+  it('should deny access for STAFF role', () => {
+    const user: User = {
+      id: 4,
+      email: 'staff@test.com',
+      role: 'STAFF',
+      brand_id: 789,
+    };
+
+    const authValue: AuthContextType = {
+      user,
+      accessToken: 'valid-token',
+      status: 'authenticated',
+      login: mockLogin,
+      logout: mockLogout,
+      getAccessToken: mockGetAccessToken,
+      isAuthenticated: mockIsAuthenticated.mockReturnValue(true),
+      isHydrating: mockIsHydrating.mockReturnValue(false),
+    };
+
+    // STAFF should not have access to admin/manager routes
+    renderProtectedRoute(authValue, ['ADMIN', 'BRAND_MANAGER']);
+    
+    expect(screen.getByText('Access Denied')).toBeInTheDocument();
+    expect(screen.getByText("You don't have permission to access this page.")).toBeInTheDocument();
   });
 });
