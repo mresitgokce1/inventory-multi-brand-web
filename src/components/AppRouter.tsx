@@ -61,7 +61,7 @@ const AppRouter: React.FC = () => {
                 }
               />
               <Route
-                path="/dashboard/products/:id"
+                path="/dashboard/products/:id/"
                 element={
                   <ProtectedRoute>
                     <ProductDetailPage />

@@ -129,12 +129,12 @@ export const productService = {
   },
 
   async getProduct(id: string): Promise<ProductPublic> {
-    const response = await apiClient.get(`/api/products/${id}`);
+    const response = await apiClient.get(`/api/products/${id}/`);
     return response.data;
   },
 
   async updateProduct(id: string, productData: FormData): Promise<ProductPublic> {
-    const response = await apiClient.patch(`/api/products/${id}`, productData, {
+    const response = await apiClient.patch(`/api/products/${id}/`, productData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
