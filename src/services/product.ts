@@ -33,7 +33,7 @@ export const productService = {
   },
 
   async generateQRCode(productId: string): Promise<QRCodeResponse> {
-    const response = await apiClient.post(`/api/products/${productId}/qr-code`);
+    const response = await apiClient.post(`/api/products/${productId}/qr-code/`);
     return response.data;
   },
 
