@@ -8,7 +8,7 @@ import { formatPrice } from '../utils/price';
 
 const QRLandingPage: React.FC = () => {
   const { code } = useParams<{ code: string }>();
-  const { isAuthenticated, user } = useAuth();
+  const {  user } = useAuth();
   const [showPrivate, setShowPrivate] = useState(false);
 
   const {
@@ -60,7 +60,6 @@ const QRLandingPage: React.FC = () => {
   
   // Check if user can view private data
   const canViewPrivate =
-    isAuthenticated() && 
     user && 
     hasPrivateData && 
     (user.role === 'ADMIN' || 
@@ -158,7 +157,7 @@ const QRLandingPage: React.FC = () => {
         )}
 
         {/* Auth Status Message */}
-        {hasPrivateData && !isAuthenticated() && (
+        {hasPrivateData && !user && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
             <p className="text-blue-800 text-sm">
               <span className="font-medium">Manager Access Available:</span> Sign in to view
@@ -173,7 +172,7 @@ const QRLandingPage: React.FC = () => {
           </div>
         )}
 
-        {hasPrivateData && isAuthenticated() && !canViewPrivate && (
+        {hasPrivateData && user && !canViewPrivate && (
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-6">
             <p className="text-orange-800 text-sm">
               <span className="font-medium">Access Restricted:</span> You can only view private

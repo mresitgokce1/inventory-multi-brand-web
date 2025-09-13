@@ -1,60 +1,55 @@
+// src/pages/LoginPage.tsx
 import React, { useState, useEffect } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { authService } from '../services/auth.ts'; 
+
+type FromState = { from?: { pathname: string } } | null;
 
 const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError]       = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
-  const { login, isAuthenticated, isHydrating } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
 
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const { user, setUser } = useAuth();
+
+  // Kullanıcı zaten girişliyse yönlendir
   useEffect(() => {
-    // Only redirect after hydration is complete and user is actually authenticated
-    if (!isHydrating() && isAuthenticated()) {
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard/products';
+    if (user) {
+      const from = ((location.state as FromState)?.from?.pathname) || '/dashboard/products';
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, isHydrating, navigate, location.state]);
+  }, [user, navigate, location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
     try {
-      await login(email, password);
-      
-      // Navigate to intended destination (from location.state) or default
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard/products';
+      const resp = await authService.login(email, password);
+      // Kullanıcıyı context'e yaz
+      // Erişim token'ını sakla ve yenilemeyi planla
+      localStorage.setItem('authUser', JSON.stringify(resp.user));
+      localStorage.setItem('accessToken', resp.access);
+      authService.setAccessToken(resp.access);
+      setUser(resp.user);
+
+      const from = ((location.state as FromState)?.from?.pathname) || '/dashboard/products';
       navigate(from, { replace: true });
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Login failed. Please try again.');
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show loading while hydrating
-  if (isHydrating()) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="flex items-center justify-center">
-            <div className="text-lg">Checking authentication...</div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect if already authenticated after hydration
-  if (isAuthenticated()) {
-    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard/products';
+  // Eğer route guard bu sayfayı render ettiyse ve user varsa, güvenli yönlendirme
+  if (user) {
+    const from = ((location.state as FromState)?.from?.pathname) || '/dashboard/products';
     return <Navigate to={from} replace />;
   }
 
